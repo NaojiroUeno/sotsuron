@@ -260,8 +260,8 @@ def main(_argv):
 
                 for cs in coord_set:
                   u, v, z = cs
-                  x = (u - K[0][2] * 1) / K[0][0]
-                  y = (v - K[1][2] * 1) / K[1][1]
+                  x = (u - K[0][2] * 1) / K[0][0] * 100
+                  y = (v - K[1][2] * 1) / K[1][1] * 100
                   
                   coord_list.append([x, y])
 
@@ -271,7 +271,7 @@ def main(_argv):
           #print(coord_list)
           x, y = zip(*coord_list)
           #plt.scatter(x, y)
-          im = plt.plot(x, y, linestyle='None', marker='o')
+          im = plt.plot(x, y, linestyle='None', marker='o', color="black")
           plt.gca().invert_yaxis()
           ims.append(im)
           #plt.show()
@@ -294,7 +294,7 @@ def main(_argv):
             out.write(result)
         if cv2.waitKey(1) & 0xFF == ord('q'): break
 
-    ani = animation.ArtistAnimation(fig, ims, interval=100)
+    ani = animation.ArtistAnimation(fig, ims, interval=50)
     ani.save('anim.mp4', writer="ffmpeg")
     plt.show()
     cv2.destroyAllWindows()
