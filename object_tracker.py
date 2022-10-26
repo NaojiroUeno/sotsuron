@@ -16,6 +16,7 @@ from PIL import Image
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 from tensorflow.compat.v1 import ConfigProto
 from tensorflow.compat.v1 import InteractiveSession
 # deep sort imports
@@ -37,6 +38,37 @@ flags.DEFINE_float('score', 0.50, 'score threshold')
 flags.DEFINE_boolean('dont_show', False, 'dont show video output')
 flags.DEFINE_boolean('info', False, 'show detailed info of tracked objects')
 flags.DEFINE_boolean('count', False, 'count objects being tracked on screen')
+
+# カメラの視野角（水平方向）
+fov = 90
+# スクリーンの画素数（横）
+pw = 1438
+# スクリーンの画素数（縦）
+ph = 808
+# カメラ情報（内部パラメータ）
+cam_info = (fov, pw, ph)
+
+import numpy as np
+from numpy import sin, cos, tan
+
+def calc_K(fov_x, pixel_w, pixel_h, cx=None, cy=None):
+    if cx is None:
+        cx = pixel_w / 2.0
+    if cy is None:
+        cy = pixel_h / 2.0
+
+    fx = 1.0 / (2.0 * tan(np.radians(fov_x) / 2.0)) * pixel_w
+    fy = fx
+
+    K = np.asarray([
+        [fx, 0, cx, 0],
+        [0, fy, cy, 0],
+        [0, 0, 1, 0],
+    ])
+
+    return K
+
+K = calc_K(*cam_info)
 
 def main(_argv):
     # Definition of the parameters
@@ -92,6 +124,8 @@ def main(_argv):
 
     frame_num = 0
     # while video is running
+    fig = plt.figure()
+    ims = []
     while True:
         return_value, frame = vid.read()
         if return_value:
@@ -200,6 +234,9 @@ def main(_argv):
         tracker.predict()
         tracker.update(detections)
 
+        coord_set = [] # 元の座標
+        coord_list = [] # 変換後の座標
+
         # update tracks
         for track in tracker.tracks:
             if not track.is_confirmed() or track.time_since_update > 1:
@@ -216,7 +253,32 @@ def main(_argv):
 
         # if enable info flag then print details about each track
             if FLAGS.info:
-                print("Tracker ID: {}, Class: {},  BBox Coords (xmin, ymin, xmax, ymax): {}".format(str(track.track_id), class_name, (int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3]))))
+                #print("Tracker ID: {}, Class: {},  BBox Coords (xmin, ymin, xmax, ymax): {}".format(str(track.track_id), class_name, (int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3]))))
+                x = (int(bbox[0]) + int(bbox[2])) / 2
+                y = int(bbox[1])
+                coord_set.append([x, y, 1])
+
+                for cs in coord_set:
+                  u, v, z = cs
+                  x = (u - K[0][2] * 1) / K[0][0]
+                  y = (v - K[1][2] * 1) / K[1][1]
+                  
+                  coord_list.append([x, y])
+
+                #print(coord_list)
+
+        if len(coord_list) > 0:
+          #print(coord_list)
+          x, y = zip(*coord_list)
+          #plt.scatter(x, y)
+          im = plt.plot(x, y, linestyle='None', marker='o')
+          plt.gca().invert_yaxis()
+          ims.append(im)
+          #plt.show()
+
+        coord_list.clear
+
+
 
         # calculate frames per second of running detections
         fps = 1.0 / (time.time() - start_time)
@@ -231,6 +293,10 @@ def main(_argv):
         if FLAGS.output:
             out.write(result)
         if cv2.waitKey(1) & 0xFF == ord('q'): break
+
+    ani = animation.ArtistAnimation(fig, ims, interval=100)
+    ani.save('anim.mp4', writer="ffmpeg")
+    plt.show()
     cv2.destroyAllWindows()
 
 if __name__ == '__main__':
