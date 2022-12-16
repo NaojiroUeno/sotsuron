@@ -1,4 +1,5 @@
 import os
+from re import A
 # comment out below line to enable tensorflow logging outputs
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import time
@@ -123,9 +124,11 @@ def main(_argv):
         out = cv2.VideoWriter(FLAGS.output, codec, fps, (width, height))
 
     frame_num = 0
+    time_now = time.time()
     # while video is running
     fig = plt.figure()
     ims = []
+    coord_old_list = [] # 1Frame前の座標
     while True:
         return_value, frame = vid.read()
         if return_value:
@@ -141,6 +144,14 @@ def main(_argv):
         image_data = image_data / 255.
         image_data = image_data[np.newaxis, ...].astype(np.float32)
         start_time = time.time()
+        
+        ######## ここでFrame間の時間を計測 #########
+        frame_time = start_time - time_now
+        time_now = time.time()
+
+        print('Frame Time: ', frame_time)
+        ###########################################
+
 
         # run detections on tflite if flag is set
         if FLAGS.framework == 'tflite':
@@ -194,7 +205,7 @@ def main(_argv):
         allowed_classes = list(class_names.values())
         
         # custom allowed classes (uncomment line below to customize tracker for only people)
-        #allowed_classes = ['person']
+        allowed_classes = ['person']
 
         # loop through objects and use class index to get class name, allow only classes in allowed_classes list
         names = []
@@ -253,30 +264,42 @@ def main(_argv):
 
         # if enable info flag then print details about each track
             if FLAGS.info:
-                #print("Tracker ID: {}, Class: {},  BBox Coords (xmin, ymin, xmax, ymax): {}".format(str(track.track_id), class_name, (int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3]))))
                 x = (int(bbox[0]) + int(bbox[2])) / 2
                 y = int(bbox[1])
-                coord_set.append([x, y, 1])
+                coord_set.append([x, y, 1, int(track.track_id)])
 
-                for cs in coord_set:
-                  u, v, z = cs
-                  x = (u - K[0][2] * 1) / K[0][0] * 100
-                  y = (v - K[1][2] * 1) / K[1][1] * 100
+        for cs in coord_set:
+          u, v, z, t_id = cs
+          x = (u - K[0][2] * 1) / K[0][0] * 100
+          y = (v - K[1][2] * 1) / K[1][1] * 100
                   
-                  coord_list.append([x, y])
+          coord_list.append([x, y, t_id])
 
-                #print(coord_list)
 
         if len(coord_list) > 0:
-          #print(coord_list)
-          x, y = zip(*coord_list)
-          #plt.scatter(x, y)
+          x, y, person_id = zip(*coord_list)
           im = plt.plot(x, y, linestyle='None', marker='o', color="black")
           plt.gca().invert_yaxis()
           ims.append(im)
-          #plt.show()
 
-        coord_list.clear
+          coord_delta = [] # 変化量を保存するリスト
+          if frame_num > 3:
+            i = 0
+            j = 0
+            while i >= j and i < len(coord_list) - 2:
+              coord_delta.append([coord_list[i][0] - coord_old_list[i][0], coord_list[i][1] - coord_old_list[i][1]])
+              i += 1
+              j += 1
+            
+          print(coord_delta)
+          #for i in range(len(coord_list)):
+            #print(coord_list[i][2]) # coord_list内のPersonIDの取得
+          coord_old_list = list()
+          coord_old_list = coord_list
+          coord_list.clear
+
+        #print(coord_set)
+        #coord_list.clear
 
 
 
@@ -298,6 +321,7 @@ def main(_argv):
     ani.save('anim.mp4', writer="ffmpeg")
     plt.show()
     cv2.destroyAllWindows()
+
 
 if __name__ == '__main__':
     try:
