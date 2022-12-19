@@ -283,23 +283,30 @@ def main(_argv):
           ims.append(im)
 
           coord_delta = [] # 変化量を保存するリスト
-          if frame_num > 3:
-            i = 0
-            j = 0
-            while i >= j and i < len(coord_list) - 2:
-              coord_delta.append([coord_list[i][0] - coord_old_list[i][0], coord_list[i][1] - coord_old_list[i][1]])
-              i += 1
-              j += 1
+          for i in range(len(coord_list)):
+            for j in range(len(coord_old_list)):
+                if coord_list[i][2] == coord_old_list[j][2]:
+                    coord_delta.append(coord_list[i][0] - coord_old_list[j][0])
+                    coord_delta.append(coord_list[i][1] - coord_old_list[j][1])
+                    coord_delta.append(coord_list[i][2])
             
+        
           print(coord_delta)
-          #for i in range(len(coord_list)):
-            #print(coord_list[i][2]) # coord_list内のPersonIDの取得
-          coord_old_list = list()
-          coord_old_list = coord_list
-          coord_list.clear
 
-        #print(coord_set)
-        #coord_list.clear
+        # ここでパラメータの差分でグルーピングを行う
+        for i in range(len(coord_delta)):
+          for j in range(i, len(coord_delta)):
+            if abs(coord_delta[i][0] - coord_delta[j][0]) < 0.01:
+              if abs(coord_delta[i][1] - coord_delta[j][1]) < 0.01:
+                 
+        ########################################
+
+          # coord_old_listの初期化
+          coord_old_list.clear
+          # 現在のリストを1フレーム分古いものにする
+          coord_old_list = coord_list
+          # coord_listの初期化
+          coord_list.clear
 
 
 
