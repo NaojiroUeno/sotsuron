@@ -25,6 +25,7 @@ from deep_sort import preprocessing, nn_matching
 from deep_sort.detection import Detection
 from deep_sort.tracker import Tracker
 from tools import generate_detections as gdet
+from geopy.distance import geodesic
 flags.DEFINE_string('framework', 'tf', '(tf, tflite, trt')
 flags.DEFINE_string('weights', './checkpoints/yolov4-416',
                     'path to weights file')
@@ -274,32 +275,39 @@ def main(_argv):
           y = (v - K[1][2] * 1) / K[1][1] * 100
                   
           coord_list.append([x, y, t_id])
-
-
+        
+        coord_delta = [] # 変化量を保存するリスト
         if len(coord_list) > 0:
           x, y, person_id = zip(*coord_list)
           im = plt.plot(x, y, linestyle='None', marker='o', color="black")
           plt.gca().invert_yaxis()
           ims.append(im)
 
-          coord_delta = [] # 変化量を保存するリスト
+          '''
+          a = []
           for i in range(len(coord_list)):
             for j in range(len(coord_old_list)):
                 if coord_list[i][2] == coord_old_list[j][2]:
-                    coord_delta.append(coord_list[i][0] - coord_old_list[j][0])
-                    coord_delta.append(coord_list[i][1] - coord_old_list[j][1])
-                    coord_delta.append(coord_list[i][2])
+                    b = [coord_list[i][0] - coord_old_list[j][0], coord_list[i][1] - coord_old_list[j][1], coord_list[i][2]]
+                    a.append(b)
             
         
-          print(coord_delta)
+          print(a)
 
         # ここでパラメータの差分でグルーピングを行う
-        for i in range(len(coord_delta)):
-          for j in range(i, len(coord_delta)):
-            if abs(coord_delta[i][0] - coord_delta[j][0]) < 0.01:
-              if abs(coord_delta[i][1] - coord_delta[j][1]) < 0.01:
-                 
-        ########################################
+          for i in range(len(a)):
+            for j in range(i + 1, len(a)):
+              if abs(a[i][0] - a[j][0]) < 0.01:
+                if abs(a[i][1] - a[j][1]) < 0.01:
+                  print(a[i][2], a[j][2])
+          '''
+
+          # とりあえずここで座標間距離でグループを発見
+          for i in range(len(coord_list) - 1):
+            for j in range(i + 1, len(coord_list)):
+              if abs(coord_list[i][0] - coord_list[j][0]) < 10:
+                if abs(coord_list[i][1] - coord_list[j][1]) < 10:
+                  print(str(coord_list[i][2]) + str(coord_list[j][2]))
 
           # coord_old_listの初期化
           coord_old_list.clear
