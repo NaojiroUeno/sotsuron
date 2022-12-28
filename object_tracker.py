@@ -1,3 +1,4 @@
+from ast import Break
 import os
 from re import A
 # comment out below line to enable tensorflow logging outputs
@@ -130,6 +131,7 @@ def main(_argv):
     fig = plt.figure()
     ims = []
     coord_old_list = [] # 1Frame前の座標
+    group = [] # グループのPersonIDの保存
     while True:
         return_value, frame = vid.read()
         if return_value:
@@ -278,37 +280,57 @@ def main(_argv):
         
         coord_delta = [] # 変化量を保存するリスト
         if len(coord_list) > 0:
+          '''
           x, y, person_id = zip(*coord_list)
           im = plt.plot(x, y, linestyle='None', marker='o', color="black")
           plt.gca().invert_yaxis()
           ims.append(im)
-
-          '''
-          a = []
-          for i in range(len(coord_list)):
-            for j in range(len(coord_old_list)):
-                if coord_list[i][2] == coord_old_list[j][2]:
-                    b = [coord_list[i][0] - coord_old_list[j][0], coord_list[i][1] - coord_old_list[j][1], coord_list[i][2]]
-                    a.append(b)
-            
-        
-          print(a)
-
-        # ここでパラメータの差分でグルーピングを行う
-          for i in range(len(a)):
-            for j in range(i + 1, len(a)):
-              if abs(a[i][0] - a[j][0]) < 0.01:
-                if abs(a[i][1] - a[j][1]) < 0.01:
-                  print(a[i][2], a[j][2])
           '''
 
           # とりあえずここで座標間距離でグループを発見
           for i in range(len(coord_list) - 1):
             for j in range(i + 1, len(coord_list)):
-              if abs(coord_list[i][0] - coord_list[j][0]) < 10:
-                if abs(coord_list[i][1] - coord_list[j][1]) < 10:
-                  print(str(coord_list[i][2]) + str(coord_list[j][2]))
+              if abs(coord_list[i][0] - coord_list[j][0]) < 5:
+                if abs(coord_list[i][1] - coord_list[j][1]) < 5:
+                  if len(group) == 0:
+                    tmp = [coord_list[i][2], coord_list[j][2], 1]
+                    group.append(tmp)
+                    break
+                  else:
+                    flag = False
+                    for k in range(len(group)):
+                      if group[k][0] == coord_list[i][2]:
+                        if group[k][1] == coord_list[j][2]:
+                          flag = True
+                          group[k][2] += 1
+                          break
+                    
+                    if flag == False:
+                      for k in range(len(group)):
+                        if group[k][0] != coord_list[i][2]:
+                          if group[k][1] != coord_list[j][2]:
+                            tmp = [coord_list[i][2], coord_list[j][2], 1]
+                            group.append(tmp)
+                            break
+                          else:
+                            tmp = [coord_list[i][2], coord_list[j][2], 1]
+                            group.append(tmp)
+                            break
+                        else:
+                          tmp = [coord_list[i][2], coord_list[j][2], 1]
+                          group.append(tmp)
+                          break
 
+          for l in range(len(group)):
+            if group[l][2] > 10:
+              print("ID '" + str(group[l][0]) + "' and ID '" + str(group[l][1]) + "' are group!")
+          
+          x, y, person_id = zip(*coord_list)
+          im = plt.plot(x, y, linestyle='None', marker='o', color="black")
+          plt.gca().invert_yaxis()
+          ims.append(im)
+          
+          #print(group)
           # coord_old_listの初期化
           coord_old_list.clear
           # 現在のリストを1フレーム分古いものにする
